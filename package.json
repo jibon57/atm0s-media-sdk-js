@@ -1,8 +1,23 @@
 {
   "name": "atm0s-media-sdk-js",
-  "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
+  "main": "./dist/atm0s-media-sdk.umd.js",
+  "unpkg": "./dist/atm0s-media-sdk.umd.js",
+  "module": "./dist/atm0s-media-sdk.esm.mjs",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/atm0s-media-sdk.esm.mjs",
+      "require": "./dist/atm0s-media-sdk.umd.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "types": "dist/src/index.d.ts",
   "scripts": {
+    "build": "rollup --config --bundleConfigAsCjs",
     "example": "vite example -c vite.config.ts",
     "lint": "prettier --write \"./example/**/*.{ts,js}\" \"./src/**/*.{ts,js}\" && eslint --fix ./example/**/*.{ts,js} ./src/**/*.{ts,js}"
   },
@@ -10,14 +25,25 @@
     "protobufjs": "7.3.2"
   },
   "devDependencies": {
+    "@babel/core": "7.24.7",
+    "@babel/preset-env": "7.24.7",
+    "@rollup/plugin-babel": "6.0.4",
+    "@rollup/plugin-commonjs": "26.0.1",
+    "@rollup/plugin-json": "6.1.0",
+    "@rollup/plugin-node-resolve": "15.2.3",
+    "@rollup/plugin-terser": "0.4.4",
     "@types/node": "20.14.11",
-    "typescript": "5.5.4",
-    "vite": "5.3.4",
     "@typescript-eslint/eslint-plugin": "7.17.0",
     "@typescript-eslint/parser": "7.17.0",
     "eslint": "8.57.0",
     "eslint-config-prettier": "9.1.0",
     "eslint-plugin-prettier": "5.2.1",
-    "prettier": "3.3.3"
+    "prettier": "3.3.3",
+    "rollup": "4.19.0",
+    "rollup-plugin-delete": "2.0.0",
+    "rollup-plugin-re": "1.0.7",
+    "rollup-plugin-typescript2": "0.36.0",
+    "typescript": "5.5.4",
+    "vite": "5.3.4"
   }
 }
