@@ -56,7 +56,7 @@ export const connect = async (
     video: true,
   });
 
-  session.sender('video_main', videoStream.getVideoTracks()[0]!, {
+  session.sender('video_main', videoStream.getVideoTracks()[0], {
     priority: 100,
     bitrate: BitrateControlMode.DYNAMIC_CONSUMERS,
     metadata: 'Video stream metadata',
@@ -82,7 +82,6 @@ const onPeerUpdated = (event: ServerEvent_Room_PeerUpdated) => {
 const onTrackStarted = async (event: ServerEvent_Room_TrackStarted) => {
   console.log('onTrackStarted', event);
   if (event.kind === Kind.AUDIO) {
-    console.log('audio');
     const audioRec = session.receiver(Kind.AUDIO);
     audioRec.attach(event);
 
