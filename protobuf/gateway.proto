@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+import "shared.proto";
+import "session.proto";
+
+package gateway;
+
+message ConnectRequest {
+    string version = 2;
+    optional session.RoomJoin join = 3;
+    shared.Tracks tracks = 4;
+    string sdp = 5;
+}
+
+message ConnectResponse {
+    string conn_id = 1;
+    string sdp = 2;
+    bool ice_lite = 3;
+}
+
+message RemoteIceRequest {
+    repeated string candidates = 1;
+}
+
+message RemoteIceResponse {
+    uint32 added = 1;
+}

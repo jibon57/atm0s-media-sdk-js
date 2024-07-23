@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+import "features.mixer.proto";
+
+package features;
+
+message Config {
+    optional features.mixer.Config mixer = 1;
+}
+
+message Request {
+    oneof request {
+        features.mixer.Request mixer = 1;
+    }
+}
+
+message Response {
+    oneof response {
+        features.mixer.Response mixer = 1;
+    }
+}
+
+message ServerEvent {
+    oneof event {
+        features.mixer.ServerEvent mixer = 1;
+    }
+}
