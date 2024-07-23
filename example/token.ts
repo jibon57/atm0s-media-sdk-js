@@ -3,12 +3,12 @@
 export const getToken = async (
   gatewayUrl: string,
   secret: string,
-  room: string,
-  peer: string,
+  roomId: string,
+  peerId: string,
   record: boolean = false,
   ttl: number = 7200,
 ) => {
-  const url = gatewayUrl + "/token/webrtc"
+  const url = gatewayUrl + '/token/webrtc';
   const rawResponse = await fetch(url, {
     method: 'POST',
     headers: {
@@ -16,7 +16,12 @@ export const getToken = async (
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ room, peer, record: record, ttl: ttl }),
+    body: JSON.stringify({
+      room: roomId,
+      peer: peerId,
+      record: record,
+      ttl: ttl,
+    }),
     cache: 'no-cache',
   });
 
