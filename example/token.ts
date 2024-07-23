@@ -1,5 +1,3 @@
-'use server';
-
 export const getToken = async (
   gatewayUrl: string,
   secret: string,
