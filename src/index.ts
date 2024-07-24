@@ -6,8 +6,8 @@ export * from './events';
 export { EventEmitter } from './utils';
 
 import {
-  SessionConfig as SessionConfigRaw,
   JoinInfo as JoinInfoRaw,
+  SessionConfig as SessionConfigRaw,
 } from './session';
 
 export type {
@@ -23,8 +23,8 @@ export { AudioMixerEvent } from './features/audio_mixer';
 export {
   BitrateControlMode,
   Sender_Config,
-  string_to_kind,
-  kind_to_string,
+  stringToKind,
+  kindToString,
   Kind,
 } from './types';
 export type SessionConfig = SessionConfigRaw;

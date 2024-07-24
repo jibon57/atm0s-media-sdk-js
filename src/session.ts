@@ -6,15 +6,17 @@ import {
 } from './generated/protobuf/gateway';
 import { TrackReceiver } from './receiver';
 import { TrackSender, TrackSenderConfig } from './sender';
-import { EventEmitter, post_protobuf } from './utils';
+import { EventEmitter, postProtobuf } from './utils';
 import { Datachannel, DatachannelEvent } from './data';
 import {
   Request_Session_UpdateSdp,
   ServerEvent_Room,
+  ServerEvent_Room_PeerLeaved,
+  ServerEvent_Room_TrackStopped,
 } from './generated/protobuf/session';
 import * as mixer from './features/audio_mixer';
 import { Kind } from './generated/protobuf/shared';
-import { kind_to_string } from './types';
+import { kindToString } from './types';
 
 export interface JoinInfo {
   room: string;
@@ -74,20 +76,20 @@ export class Session extends EventEmitter {
       } else if (event.peerUpdated) {
         this.emit(SessionEvent.ROOM_PEER_UPDATED, event.peerUpdated);
       } else if (event.peerLeaved) {
-        this.emit(SessionEvent.ROOM_PEER_LEAVED, event.peerLeaved);
+        this.onAfterPeerLeave(event.peerLeaved);
       } else if (event.trackStarted) {
         this.emit(SessionEvent.ROOM_TRACK_STARTED, event.trackStarted);
       } else if (event.trackUpdated) {
         this.emit(SessionEvent.ROOM_TRACK_UPDATED, event.trackUpdated);
       } else if (event.trackStopped) {
-        this.emit(SessionEvent.ROOM_TRACK_STOPPED, event.trackStopped);
+        this.onRoomTrackStopped(event.trackStopped);
       }
     });
 
     //TODO add await to throtle for avoiding too much update in short time
     this.peer.onnegotiationneeded = () => {
       if (this.dc.connected)
-        this.sync_sdp().then(console.log).catch(console.error);
+        this.syncSdp().then(console.log).catch(console.error);
     };
 
     this.peer.onconnectionstatechange = (_event) => {
@@ -107,13 +109,13 @@ export class Session extends EventEmitter {
     this.peer.ontrack = (event) => {
       for (let i = 0; i < this.receivers.length; i++) {
         const receiver = this.receivers[i]!;
-        if (!receiver.has_track()) {
+        if (receiver.webrtcTrackId == event.track.id) {
           console.log(
             '[Session] found receiver for track',
             receiver.name,
             event.track,
           );
-          receiver.set_track(event.track);
+          receiver.setTrackReady();
           return;
         }
       }
@@ -126,7 +128,7 @@ export class Session extends EventEmitter {
           candidates: [event.candidate.candidate],
         });
         console.log('Send ice-candidate', event.candidate.candidate);
-        const res = await post_protobuf(
+        const res = await postProtobuf(
           RemoteIceRequest,
           RemoteIceResponse,
           this.gateway + '/webrtc/' + this.conn_id + '/ice-candidate',
@@ -158,7 +160,7 @@ export class Session extends EventEmitter {
   }
 
   receiver(kind: Kind): TrackReceiver {
-    const kind_str = kind_to_string(kind);
+    const kind_str = kindToString(kind);
     const track_name = kind_str + '_' + this.receivers.length;
     const receiver = new TrackReceiver(this.dc, track_name, kind);
     if (!this.prepareState) {
@@ -222,7 +224,7 @@ export class Session extends EventEmitter {
       sdp: local_desc.sdp,
     });
     console.log('Connecting');
-    const res = await post_protobuf(
+    const res = await postProtobuf(
       ConnectRequest,
       ConnectResponse,
       this.gateway + '/webrtc/connect',
@@ -263,7 +265,7 @@ export class Session extends EventEmitter {
       sdp: local_desc.sdp,
     });
     console.log('Sending restart-ice request');
-    const res = await post_protobuf(
+    const res = await postProtobuf(
       ConnectRequest,
       ConnectResponse,
       this.gateway + '/webrtc/' + this.conn_id + '/restart-ice',
@@ -299,7 +301,7 @@ export class Session extends EventEmitter {
         this._mixer = new mixer.AudioMixer(this, this.dc, info.features.mixer);
       }
     }
-    await this.dc.request_session({
+    await this.dc.requestSession({
       join: {
         info: {
           room: info.room,
@@ -317,7 +319,7 @@ export class Session extends EventEmitter {
     this.emit(SessionEvent.ROOM_CHANGED, info);
   }
 
-  async sync_sdp() {
+  async syncSdp() {
     const local_desc = await this.peer.createOffer({
       offerToReceiveAudio: true,
       offerToReceiveVideo: true,
@@ -331,7 +333,7 @@ export class Session extends EventEmitter {
     });
 
     console.log('Requesting update sdp', update_sdp);
-    const res = await this.dc.request_session({
+    const res = await this.dc.requestSession({
       sdp: update_sdp,
     });
     console.log('Request update sdp success', res);
@@ -341,10 +343,10 @@ export class Session extends EventEmitter {
 
   async leave() {
     //reset local here
-    this.receivers.map((r) => r.leave_room());
+    this.receivers.map((r) => r.leaveRoom());
     this.mixer?.leave_room();
 
-    await this.dc.request_session({
+    await this.dc.requestSession({
       leave: {},
     });
     this.cfg.join = undefined;
@@ -355,4 +357,32 @@ export class Session extends EventEmitter {
     console.warn('Disconnect session', this.created_at);
     this.peer.close();
   }
+
+  private onAfterPeerLeave = (event: ServerEvent_Room_PeerLeaved) => {
+    // we'll look for this peer's medias & remove those
+    for (let i = 0; i < this.receivers.length; i++) {
+      const receiver = this.receivers[i];
+      if (receiver.attachedSource?.peer === event.peer) {
+        receiver.detach();
+        receiver.leaveRoom();
+        this.receivers = this.receivers.splice(i, 1);
+      }
+    }
+    this.emit(SessionEvent.ROOM_PEER_LEAVED, event);
+  };
+
+  private onRoomTrackStopped = (event: ServerEvent_Room_TrackStopped) => {
+    //we'll look for this peer's medias & remove those
+    for (let i = 0; i < this.receivers.length; i++) {
+      const receiver = this.receivers[i];
+      if (
+        receiver.attachedSource?.peer === event.peer &&
+        receiver.attachedSource?.track === event.track
+      ) {
+        receiver.detach();
+        this.receivers = this.receivers.splice(i, 1);
+      }
+    }
+    this.emit(SessionEvent.ROOM_TRACK_STOPPED, event);
+  };
 }

@@ -131,7 +131,7 @@ window.addEventListener('load', () => {
   const peerId = document.getElementById('peerId') as HTMLInputElement;
 
   const time = Date.now();
-  roomId.value = 'room_' + time;
+  //roomId.value = 'room_' + time;
   peerId.value = 'peer_' + time;
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
