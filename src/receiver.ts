@@ -61,7 +61,7 @@ export class TrackReceiver extends EventEmitter {
   }
 
   public get status(): TrackReceiverStatus | undefined {
-    return this.status;
+    return this._status;
   }
 
   public get attachedSource() {

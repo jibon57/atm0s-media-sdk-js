@@ -15,8 +15,9 @@ import {
   ServerEvent_Room_TrackStopped,
 } from './generated/protobuf/session';
 import * as mixer from './features/audio_mixer';
-import { Kind } from './generated/protobuf/shared';
+import { Kind, Receiver_Status } from './generated/protobuf/shared';
 import { kindToString } from './types';
+import { TrackSenderStatus } from './index';
 
 export interface JoinInfo {
   room: string;
@@ -362,18 +363,41 @@ export class Session extends EventEmitter {
     this.emit(SessionEvent.ROOM_CHANGED, undefined);
   }
 
-  disconnect() {
+  public disconnect = async () => {
     console.warn('Disconnect session', this.created_at);
-    this.peer.close();
-    this.emit(SessionEvent.ROOM_DISCONNECTED);
-  }
 
-  private onAfterPeerLeave = (event: ServerEvent_Room_PeerLeaved) => {
+    // first let's close all the remote tracks
+    for (let i = 0; i < this.receivers.length; i++) {
+      const receiver = this.receivers[i];
+      if (receiver && receiver.status === Receiver_Status.ACTIVE) {
+        await receiver.detach();
+      }
+    }
+    this.receivers = [];
+
+    // local tracks
+    // first let's close all the remote tracks
+    for (let i = 0; i < this.senders.length; i++) {
+      const sender = this.senders[i];
+      if (sender && sender.status === TrackSenderStatus.ACTIVE) {
+        // now detach
+        await sender.detach();
+      }
+    }
+    this.senders = [];
+
+    // close peer
+    this.peer.close();
+    // finally emit event
+    this.emit(SessionEvent.ROOM_DISCONNECTED);
+  };
+
+  private onAfterPeerLeave = async (event: ServerEvent_Room_PeerLeaved) => {
     // we'll look for this peer's medias & remove those
     for (let i = 0; i < this.receivers.length; i++) {
       const receiver = this.receivers[i];
-      if (receiver.attachedSource?.peer === event.peer) {
-        receiver.detach();
+      if (receiver && receiver.attachedSource?.peer === event.peer) {
+        await receiver.detach();
         receiver.leaveRoom();
         this.receivers = this.receivers.splice(i, 1);
       }
@@ -381,15 +405,16 @@ export class Session extends EventEmitter {
     this.emit(SessionEvent.ROOM_PEER_LEAVED, event);
   };
 
-  private onRoomTrackStopped = (event: ServerEvent_Room_TrackStopped) => {
+  private onRoomTrackStopped = async (event: ServerEvent_Room_TrackStopped) => {
     //we'll look for this peer's medias & remove those
     for (let i = 0; i < this.receivers.length; i++) {
       const receiver = this.receivers[i];
       if (
+        receiver &&
         receiver.attachedSource?.peer === event.peer &&
         receiver.attachedSource?.track === event.track
       ) {
-        receiver.detach();
+        await receiver.detach();
         this.receivers = this.receivers.splice(i, 1);
       }
     }
