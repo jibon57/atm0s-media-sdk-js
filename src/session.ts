@@ -42,6 +42,7 @@ export enum SessionEvent {
   ROOM_TRACK_STARTED = 'room.track.started',
   ROOM_TRACK_UPDATED = 'room.track.updated',
   ROOM_TRACK_STOPPED = 'room.track.stopped',
+  ROOM_DISCONNECTED = 'room.disconnected',
 }
 
 export class Session extends EventEmitter {
@@ -176,6 +177,14 @@ export class Session extends EventEmitter {
     track_or_kind: MediaStreamTrack | Kind,
     cfg?: TrackSenderConfig,
   ) {
+    for (let i = 0; i < this.senders.length; i++) {
+      if (this.senders[i].name === track_name) {
+        // we already have same sender track with track_name
+        // so, we'll just return it
+        return this.senders[i];
+      }
+    }
+
     const sender = new TrackSender(this.dc, track_name, track_or_kind, cfg);
     if (!this.prepareState) {
       sender.prepare(this.peer);
@@ -356,6 +365,7 @@ export class Session extends EventEmitter {
   disconnect() {
     console.warn('Disconnect session', this.created_at);
     this.peer.close();
+    this.emit(SessionEvent.ROOM_DISCONNECTED);
   }
 
   private onAfterPeerLeave = (event: ServerEvent_Room_PeerLeaved) => {

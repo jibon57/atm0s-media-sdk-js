@@ -1,4 +1,10 @@
-import { BitrateControlMode, Kind, Session, SessionEvent } from '../src';
+import {
+  BitrateControlMode,
+  Kind,
+  Session,
+  SessionEvent,
+  TrackSender,
+} from '../src';
 import { getToken } from './token.ts';
 import {
   ServerEvent_Room_PeerJoined,
@@ -9,15 +15,18 @@ import {
   ServerEvent_Room_TrackUpdated,
 } from '../src/generated/protobuf/session.ts';
 import { JoinInfo } from '../src/session.ts';
+import { Sender_Status } from '../src/generated/protobuf/shared.ts';
 
 let session: Session | undefined = undefined;
-export const connect = async (
+let audioSender: TrackSender | undefined = undefined;
+let videoSender: TrackSender | undefined = undefined;
+
+const createSession = async (
   gatewayUrl: string,
   secret: string,
   roomId: string,
   peerId: string,
 ) => {
-  console.log('connect!');
   let token: string;
   try {
     token = await getToken(gatewayUrl, secret, roomId, peerId);
@@ -26,7 +35,7 @@ export const connect = async (
     return;
   }
 
-  session = new Session(gatewayUrl, {
+  const _session = new Session(gatewayUrl, {
     token,
     join: {
       room: roomId,
@@ -36,15 +45,36 @@ export const connect = async (
     },
   });
 
-  session.on(SessionEvent.ROOM_CHANGED, onRoomChanged);
-  session.on(SessionEvent.ROOM_PEER_JOINED, onPeerJoined);
-  session.on(SessionEvent.ROOM_PEER_LEAVED, onPeerLeaved);
-  session.on(SessionEvent.ROOM_PEER_UPDATED, onPeerUpdated);
-  session.on(SessionEvent.ROOM_TRACK_STARTED, onTrackStarted);
-  session.on(SessionEvent.ROOM_TRACK_UPDATED, onTrackUpdated);
-  session.on(SessionEvent.ROOM_TRACK_STOPPED, onTrackStopped);
+  _session.on(SessionEvent.ROOM_CHANGED, onRoomChanged);
+  _session.on(SessionEvent.ROOM_PEER_JOINED, onPeerJoined);
+  _session.on(SessionEvent.ROOM_PEER_LEAVED, onPeerLeaved);
+  _session.on(SessionEvent.ROOM_PEER_UPDATED, onPeerUpdated);
+  _session.on(SessionEvent.ROOM_TRACK_STARTED, onTrackStarted);
+  _session.on(SessionEvent.ROOM_TRACK_UPDATED, onTrackUpdated);
+  _session.on(SessionEvent.ROOM_TRACK_STOPPED, onTrackStopped);
+  _session.on(SessionEvent.ROOM_DISCONNECTED, () => (session = undefined));
 
-  await session.connect();
+  await _session.connect();
+  if (_session.peer.connectionState === 'connected') {
+    session = _session;
+  }
+};
+
+export const connect = async (
+  gatewayUrl: string,
+  secret: string,
+  roomId: string,
+  peerId: string,
+) => {
+  if (session !== undefined) {
+    console.log('peer connection state', session.peer.connectionState);
+    if (session.peer.connectionState !== 'connected') {
+      await session.connect();
+    }
+    return;
+  }
+
+  await createSession(gatewayUrl, secret, roomId, peerId);
 };
 
 const onRoomChanged = (info: JoinInfo) => {
@@ -90,6 +120,18 @@ const onTrackUpdated = (event: ServerEvent_Room_TrackUpdated) => {
 
 const onTrackStopped = (event: ServerEvent_Room_TrackStopped) => {
   console.log('onTrackStopped', event);
+
+  if (event.kind == Kind.AUDIO) {
+    const remoteAudioNode = document.getElementById(
+      'remoteAudio',
+    ) as HTMLAudioElement;
+    remoteAudioNode.srcObject = null;
+  } else if (event.kind == Kind.VIDEO) {
+    const remoteVideoNode = document.getElementById(
+      'remoteVideo',
+    ) as HTMLVideoElement;
+    remoteVideoNode.srcObject = null;
+  }
 };
 
 const mediaShare = async () => {
@@ -99,14 +141,14 @@ const mediaShare = async () => {
   const audioStream = await navigator.mediaDevices.getUserMedia({
     audio: true,
   });
-  session.sender('audio_main', audioStream.getAudioTracks()[0]);
+  audioSender = session.sender('audio_main', audioStream.getAudioTracks()[0]);
 
   const videoStream = await navigator.mediaDevices.getUserMedia({
     audio: false,
     video: true,
   });
 
-  session.sender('video_main', videoStream.getVideoTracks()[0], {
+  videoSender = session.sender('video_main', videoStream.getVideoTracks()[0], {
     priority: 100,
     bitrate: BitrateControlMode.DYNAMIC_CONSUMERS,
     metadata: 'Video stream metadata',
@@ -146,6 +188,24 @@ window.addEventListener('load', () => {
   document.getElementById('mediaShare').addEventListener('click', async (e) => {
     e.preventDefault();
     await mediaShare();
+  });
+
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-expect-error
+  document.getElementById('disMedia').addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (audioSender && videoSender) {
+      if (audioSender._status === Sender_Status.ACTIVE) {
+        console.log('closing...', audioSender.name);
+        audioSender.track?.stop();
+        await audioSender.detach();
+      }
+      if (videoSender._status === Sender_Status.ACTIVE) {
+        console.log('closing...', videoSender.name);
+        videoSender.track?.stop();
+        await videoSender.detach();
+      }
+    }
   });
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
