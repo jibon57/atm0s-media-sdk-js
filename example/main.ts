@@ -10,7 +10,7 @@ import {
 } from '../src/generated/protobuf/session.ts';
 import { JoinInfo } from '../src/session.ts';
 
-let session: Session;
+let session: Session | undefined = undefined;
 export const connect = async (
   gatewayUrl: string,
   secret: string,
@@ -45,25 +45,6 @@ export const connect = async (
   session.on(SessionEvent.ROOM_TRACK_STOPPED, onTrackStopped);
 
   await session.connect();
-
-  const audioStream = await navigator.mediaDevices.getUserMedia({
-    audio: true,
-  });
-  session.sender('audio_main', audioStream.getAudioTracks()[0]);
-
-  const videoStream = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: true,
-  });
-
-  session.sender('video_main', videoStream.getVideoTracks()[0], {
-    priority: 100,
-    bitrate: BitrateControlMode.DYNAMIC_CONSUMERS,
-    metadata: 'Video stream metadata',
-  });
-
-  const localVideo = document.getElementById('local') as HTMLVideoElement;
-  localVideo.srcObject = videoStream;
 };
 
 const onRoomChanged = (info: JoinInfo) => {
@@ -81,6 +62,9 @@ const onPeerUpdated = (event: ServerEvent_Room_PeerUpdated) => {
 };
 const onTrackStarted = async (event: ServerEvent_Room_TrackStarted) => {
   console.log('onTrackStarted', event);
+  if (session === undefined) {
+    return;
+  }
   if (event.kind === Kind.AUDIO) {
     const audioRec = session.receiver(Kind.AUDIO);
     audioRec.attach(event);
@@ -108,6 +92,30 @@ const onTrackStopped = (event: ServerEvent_Room_TrackStopped) => {
   console.log('onTrackStopped', event);
 };
 
+const mediaShare = async () => {
+  if (session === undefined) {
+    return;
+  }
+  const audioStream = await navigator.mediaDevices.getUserMedia({
+    audio: true,
+  });
+  session.sender('audio_main', audioStream.getAudioTracks()[0]);
+
+  const videoStream = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: true,
+  });
+
+  session.sender('video_main', videoStream.getVideoTracks()[0], {
+    priority: 100,
+    bitrate: BitrateControlMode.DYNAMIC_CONSUMERS,
+    metadata: 'Video stream metadata',
+  });
+
+  const localVideo = document.getElementById('local') as HTMLVideoElement;
+  localVideo.srcObject = videoStream;
+};
+
 const disconnect = () => {
   if (session === undefined) {
     return;
@@ -131,6 +139,13 @@ window.addEventListener('load', () => {
   document.getElementById('connect').addEventListener('click', async (e) => {
     e.preventDefault();
     await connect(gateway.value, secret.value, roomId.value, peerId.value);
+  });
+
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-expect-error
+  document.getElementById('mediaShare').addEventListener('click', async (e) => {
+    e.preventDefault();
+    await mediaShare();
   });
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment

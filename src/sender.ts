@@ -1,15 +1,15 @@
 import {
-  BitrateControlMode,
-  Kind,
   Sender,
-  Sender_Config,
+  Kind,
+  BitrateControlMode,
   Sender_State,
+  Sender_Config,
 } from './generated/protobuf/shared';
 import { Datachannel, DatachannelEvent } from './data';
 import { kind_to_string, string_to_kind } from './types';
 import { ServerEvent_Sender } from './generated/protobuf/session';
 import { EventEmitter } from './utils';
-import { TrackSenderStatus } from './';
+import { TrackSenderStatus } from './lib';
 
 const DEFAULT_CFG = {
   priority: 1,

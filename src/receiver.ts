@@ -9,7 +9,7 @@ import { EventEmitter, ReadyWaiter } from './utils';
 import { Datachannel, DatachannelEvent } from './data';
 import { kind_to_string } from './types';
 import { ServerEvent_Receiver } from './generated/protobuf/session';
-import { TrackReceiverStatus } from './';
+import { TrackReceiverStatus } from './lib';
 
 const DEFAULT_CFG = {
   priority: 1,
