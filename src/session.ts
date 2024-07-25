@@ -240,6 +240,7 @@ export class Session extends EventEmitter {
       sdp: local_desc.sdp,
     });
     console.log('Connecting');
+
     const res = await postProtobuf(
       ConnectRequest,
       ConnectResponse,
@@ -250,6 +251,11 @@ export class Session extends EventEmitter {
         'Content-Type': 'application/grpc',
       },
     );
+
+    if (res.connId === '' || res.connId === '') {
+      throw new Error('connection was not successful');
+    }
+
     this.conn_id = res.connId;
     this.ice_lite = res.iceLite;
     await this._peer.setLocalDescription(local_desc);
