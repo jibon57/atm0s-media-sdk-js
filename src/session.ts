@@ -74,19 +74,19 @@ export class Session extends EventEmitter {
     this.dc = new Datachannel(
       this.peer.createDataChannel('data', { negotiated: true, id: 1000 }),
     );
-    this.dc.on(DatachannelEvent.ROOM, (event: ServerEvent_Room) => {
+    this.dc.on(DatachannelEvent.ROOM, async (event: ServerEvent_Room) => {
       if (event.peerJoined) {
         this.emit(SessionEvent.ROOM_PEER_JOINED, event.peerJoined);
       } else if (event.peerUpdated) {
         this.emit(SessionEvent.ROOM_PEER_UPDATED, event.peerUpdated);
       } else if (event.peerLeaved) {
-        this.onAfterPeerLeave(event.peerLeaved);
+        await this.onAfterPeerLeave(event.peerLeaved);
       } else if (event.trackStarted) {
         this.emit(SessionEvent.ROOM_TRACK_STARTED, event.trackStarted);
       } else if (event.trackUpdated) {
         this.emit(SessionEvent.ROOM_TRACK_UPDATED, event.trackUpdated);
       } else if (event.trackStopped) {
-        this.onRoomTrackStopped(event.trackStopped);
+        await this.onRoomTrackStopped(event.trackStopped);
       }
     });
 
