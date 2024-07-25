@@ -20,7 +20,9 @@ import { Sender_Status } from '../src/generated/protobuf/shared.ts';
 let session: Session | undefined = undefined;
 let audioSender: TrackSender | undefined = undefined;
 let videoSender: TrackSender | undefined = undefined;
-
+let currentPeerId: string = '';
+const videoTracksMap = new Map<string, HTMLVideoElement>();
+const audioTrackMap = new Map<string, HTMLAudioElement>();
 const createSession = async (
   gatewayUrl: string,
   secret: string,
@@ -96,22 +98,37 @@ const onTrackStarted = async (event: ServerEvent_Room_TrackStarted) => {
     return;
   }
   if (event.kind === Kind.AUDIO) {
+    if (event.peer === currentPeerId) {
+      // to avoid echo
+      return;
+    }
     const audioRec = session.receiver(Kind.AUDIO);
-    audioRec.attach(event);
+    await audioRec.attach(event);
 
-    const remoteAudioNode = document.getElementById(
-      'remoteAudio',
-    ) as HTMLAudioElement;
-    remoteAudioNode.srcObject = audioRec.stream;
+    const audio = document.createElement('audio');
+    audio.srcObject = audioRec.stream;
+    audio.autoplay = true;
+
+    audioTrackMap.set(
+      audioRec.attachedSource?.peer + '_' + audioRec.attachedSource?.track,
+      audio,
+    );
+    playAudios();
   } else if (event.kind === Kind.VIDEO) {
     const videoRec = session.receiver(Kind.VIDEO);
-    videoRec.attach(event);
+    await videoRec.attach(event);
 
-    const remoteVideoNode = document.getElementById(
-      'remoteVideo',
-    ) as HTMLVideoElement;
+    const video = document.createElement('video');
 
-    remoteVideoNode.srcObject = videoRec.stream;
+    video.srcObject = videoRec.stream;
+    video.autoplay = true;
+    video.className = 'col';
+    videoTracksMap.set(
+      videoRec.attachedSource?.peer + '_' + videoRec.attachedSource?.track,
+      video,
+    );
+
+    displayVideos();
   }
 };
 const onTrackUpdated = (event: ServerEvent_Room_TrackUpdated) => {
@@ -122,16 +139,35 @@ const onTrackStopped = (event: ServerEvent_Room_TrackStopped) => {
   console.log('onTrackStopped', event);
 
   if (event.kind == Kind.AUDIO) {
-    const remoteAudioNode = document.getElementById(
-      'remoteAudio',
-    ) as HTMLAudioElement;
-    remoteAudioNode.srcObject = null;
+    audioTrackMap.delete(event.peer + '_' + event.track);
+    playAudios();
   } else if (event.kind == Kind.VIDEO) {
-    const remoteVideoNode = document.getElementById(
-      'remoteVideo',
-    ) as HTMLVideoElement;
-    remoteVideoNode.srcObject = null;
+    videoTracksMap.delete(event.peer + '_' + event.track);
+    console.log(videoTracksMap);
+    displayVideos();
   }
+};
+
+const displayVideos = () => {
+  const elm = document.getElementById('remoteVideos');
+  elm.innerHTML = '';
+
+  videoTracksMap.forEach((v) => {
+    const div = document.createElement('div');
+    div.className = 'col';
+    div.appendChild(v);
+
+    elm.appendChild(div);
+  });
+};
+
+const playAudios = () => {
+  const elm = document.getElementById('remoteAudios');
+  elm.innerHTML = '';
+
+  audioTrackMap.forEach((a) => {
+    elm.appendChild(a);
+  });
 };
 
 const mediaShare = async () => {
@@ -180,7 +216,8 @@ window.addEventListener('load', () => {
   // @ts-expect-error
   document.getElementById('connect').addEventListener('click', async (e) => {
     e.preventDefault();
-    await connect(gateway.value, secret.value, roomId.value, peerId.value);
+    currentPeerId = peerId.value;
+    await connect(gateway.value, secret.value, roomId.value, currentPeerId);
   });
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
