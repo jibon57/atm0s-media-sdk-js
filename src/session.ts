@@ -264,7 +264,7 @@ export class Session extends EventEmitter {
     console.log('Connected');
   };
 
-  private restartIce = async () => {
+  public restartIce = async () => {
     //TODO detect disconnect state and call restart-ice
     const local_desc = await this._peer.createOffer({
       offerToReceiveAudio: true,
