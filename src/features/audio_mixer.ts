@@ -44,10 +44,10 @@ interface OutputSlot {
 }
 
 export class AudioMixer extends EventEmitter {
-  mode: AudioMixerMode;
-  receivers: TrackReceiver[] = [];
-  sources: AudioMixerSource[];
-  outputs: OutputSlot[] = [{}, {}, {}];
+  private readonly mode: AudioMixerMode;
+  private receivers: TrackReceiver[] = [];
+  private sources: AudioMixerSource[];
+  private outputs: OutputSlot[] = [{}, {}, {}];
 
   constructor(
     session: Session,
@@ -68,23 +68,23 @@ export class AudioMixer extends EventEmitter {
   }
 
   //TODO reconfig when we re-join room
-  public reconfig(config: AudioMixerConfig) {
+  public reconfig = (config: AudioMixerConfig) => {
     console.log('reconfig mixer with config', config);
-  }
+  };
 
-  public state(): Config {
+  public state = (): Config => {
     return {
       mode: this.mode,
       outputs: this.receivers.map((r) => r.name),
       sources: this.sources,
     };
-  }
+  };
 
-  public streams(): MediaStream[] {
+  public streams = (): MediaStream[] => {
     return this.receivers.map((r) => r.stream);
-  }
+  };
 
-  public attach(sources: AudioMixerSource[]) {
+  public attach = (sources: AudioMixerSource[]) => {
     const req_srcs = [];
     for (const i in sources) {
       const source = sources[i]!;
@@ -101,9 +101,9 @@ export class AudioMixer extends EventEmitter {
         sources: req_srcs,
       },
     });
-  }
+  };
 
-  public detach(sources: AudioMixerSource[]) {
+  public detach = (sources: AudioMixerSource[]) => {
     const req_srcs = [];
     for (const i in sources) {
       const source = sources[i]!;
@@ -121,16 +121,16 @@ export class AudioMixer extends EventEmitter {
         sources: req_srcs,
       },
     });
-  }
+  };
 
   // We need to reset local state when leave room
-  public leave_room() {
+  public leave_room = () => {
     this.outputs = [{}, {}, {}];
     this.sources = [];
     this.emit(AudioMixerEvent.OUTPUT_CHANGED, this.outputs);
-  }
+  };
 
-  _onReceiverVoiceActivity = (
+  private _onReceiverVoiceActivity = (
     slot: number,
     activity: ServerEvent_Receiver_VoiceActivity,
   ) => {
@@ -140,7 +140,7 @@ export class AudioMixer extends EventEmitter {
     }
   };
 
-  _onMixerEvent = (event: ServerEvent) => {
+  private _onMixerEvent = (event: ServerEvent) => {
     if (event.slotSet) {
       const output_source = this.outputs[event.slotSet.slot]?.source;
       // if this slot already set to other => reset it
@@ -160,7 +160,7 @@ export class AudioMixer extends EventEmitter {
     }
   };
 
-  _fireVoiceEvent(
+  private _fireVoiceEvent(
     source: AudioMixerSource,
     active: boolean,
     audio_level?: number,

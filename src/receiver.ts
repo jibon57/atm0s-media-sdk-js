@@ -25,13 +25,16 @@ export enum TrackReceiverEvent {
 }
 
 export class TrackReceiver extends EventEmitter {
-  transceiver?: RTCRtpTransceiver;
-  waiter: ReadyWaiter = new ReadyWaiter();
-  media_stream: MediaStream;
-  media_track?: MediaStreamTrack;
-  receiver_state: Receiver_State = { config: undefined, source: undefined };
-  _status?: TrackReceiverStatus;
-  _attachedSource?: Receiver_Source;
+  private transceiver?: RTCRtpTransceiver;
+  private waiter: ReadyWaiter = new ReadyWaiter();
+  private readonly _mediaStream: MediaStream;
+  private media_track?: MediaStreamTrack;
+  private receiver_state: Receiver_State = {
+    config: undefined,
+    source: undefined,
+  };
+  private _status?: TrackReceiverStatus;
+  private _attachedSource?: Receiver_Source;
 
   constructor(
     private dc: Datachannel,
@@ -39,7 +42,7 @@ export class TrackReceiver extends EventEmitter {
     private _kind: Kind,
   ) {
     super();
-    this.media_stream = new MediaStream();
+    this._mediaStream = new MediaStream();
     console.log('[TrackReceiver] create ', track_name, dc);
     this.dc.on(
       DatachannelEvent.RECEIVER + track_name,
@@ -62,6 +65,10 @@ export class TrackReceiver extends EventEmitter {
     return this.media_track?.id;
   }
 
+  public get mediaStream() {
+    return this.mediaStream;
+  }
+
   public get status(): TrackReceiverStatus | undefined {
     return this._status;
   }
@@ -70,28 +77,28 @@ export class TrackReceiver extends EventEmitter {
     return this._attachedSource;
   }
 
-  public setTrackReady() {
+  public setTrackReady = () => {
     this.waiter.setReady();
-  }
+  };
 
-  public async ready() {
+  public ready = async () => {
     return this.waiter.waitReady();
-  }
+  };
 
   /// We need lazy prepare for avoding error when sender track is changed before it connect.
   /// Config after init feature will be useful when complex application
-  prepare(peer: RTCPeerConnection) {
+  public prepare = (peer: RTCPeerConnection) => {
     this.transceiver = peer.addTransceiver(kindToString(this._kind), {
       direction: 'recvonly',
     });
-    this.media_stream.addTrack(this.transceiver.receiver.track);
+    this._mediaStream.addTrack(this.transceiver.receiver.track);
     this.media_track = this.transceiver.receiver.track;
-  }
+  };
 
-  public async attach(
+  public attach = async (
     source: Receiver_Source,
     config: Receiver_Config = DEFAULT_CFG,
-  ) {
+  ) => {
     this.receiver_state.config = config;
     this.receiver_state.source = source;
     this._attachedSource = source;
@@ -113,9 +120,9 @@ export class TrackReceiver extends EventEmitter {
         config: this.receiver_state.config,
       },
     });
-  }
+  };
 
-  public async detach() {
+  public detach = async () => {
     delete this.receiver_state.source;
     delete this.receiver_state.config;
     delete this._status;
@@ -133,9 +140,9 @@ export class TrackReceiver extends EventEmitter {
       name: this.track_name,
       detach: {},
     });
-  }
+  };
 
-  public async config(config: Receiver_Config) {
+  public config = async (config: Receiver_Config) => {
     this.receiver_state.config = config;
 
     //if we in prepare state, we dont need to access to server, just update local
@@ -150,22 +157,22 @@ export class TrackReceiver extends EventEmitter {
       name: this.track_name,
       config,
     });
-  }
+  };
 
   // We need to reset local state when leave room
-  public leaveRoom() {
+  public leaveRoom = () => {
     this.receiver_state.source = undefined;
+  };
+
+  public get stream() {
+    return this._mediaStream;
   }
 
-  get stream() {
-    return this.media_stream;
-  }
-
-  get name(): string {
+  public get name(): string {
     return this.track_name;
   }
 
-  get state(): Receiver {
+  public get state(): Receiver {
     return {
       name: this.name,
       kind: this.kind,

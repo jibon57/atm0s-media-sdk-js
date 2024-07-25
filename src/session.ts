@@ -49,19 +49,19 @@ export enum SessionEvent {
 }
 
 export class Session extends EventEmitter {
-  ice_lite: boolean = false;
-  created_at: number;
-  version?: string;
-  conn_id?: string;
-  peer: RTCPeerConnection;
-  dc: Datachannel;
-  receivers: TrackReceiver[] = [];
-  senders: TrackSender[] = [];
-  _mixer?: mixer.AudioMixer;
+  private ice_lite: boolean = false;
+  private readonly created_at: number;
+  private version?: string;
+  private conn_id?: string;
+  private readonly peer: RTCPeerConnection;
+  private readonly dc: Datachannel;
+  private receivers: TrackReceiver[] = [];
+  private senders: TrackSender[] = [];
+  private _mixer?: mixer.AudioMixer;
 
   /// Prepaer state for flagging when ever this peer is created offer.
   /// This flag is useful for avoiding tranceiver config is changed before it connect
-  prepareState: boolean = true;
+  private prepareState: boolean = true;
 
   constructor(
     private gateway: string,
@@ -96,14 +96,14 @@ export class Session extends EventEmitter {
         this.syncSdp().then(console.log).catch(console.error);
     };
 
-    this.peer.onconnectionstatechange = (_event) => {
+    this.peer.onconnectionstatechange = () => {
       console.log(
         '[Session] RTCPeer connection state changed',
         this.peer.connectionState,
       );
     };
 
-    this.peer.oniceconnectionstatechange = (_event) => {
+    this.peer.oniceconnectionstatechange = () => {
       console.log(
         '[Session] RTCPeer ice state changed',
         this.peer.iceConnectionState,
@@ -150,20 +150,20 @@ export class Session extends EventEmitter {
       this._mixer = new mixer.AudioMixer(
         this,
         this.dc,
-        cfg.join?.features.mixer,
+        cfg.join.features.mixer,
       );
     }
   }
 
-  get room() {
+  public get room() {
     return this.cfg.join;
   }
 
-  get mixer() {
+  public get mixer() {
     return this._mixer;
   }
 
-  receiver(kind: Kind): TrackReceiver {
+  public receiver = (kind: Kind): TrackReceiver => {
     const kind_str = kindToString(kind);
     const track_name = kind_str + '_' + this.receivers.length;
     const receiver = new TrackReceiver(this.dc, track_name, kind);
@@ -173,13 +173,13 @@ export class Session extends EventEmitter {
     this.receivers.push(receiver);
     console.log('Created receiver', kind, track_name);
     return receiver;
-  }
+  };
 
-  sender(
+  public sender = (
     track_name: string,
     track_or_kind: MediaStreamTrack | Kind,
     cfg?: TrackSenderConfig,
-  ) {
+  ) => {
     for (let i = 0; i < this.senders.length; i++) {
       if (this.senders[i].name === track_name) {
         // we already have same sender track with track_name
@@ -195,9 +195,9 @@ export class Session extends EventEmitter {
     this.senders.push(sender);
     console.log('Created sender', sender.kind, track_name);
     return sender;
-  }
+  };
 
-  async connect(version?: string) {
+  public connect = async (version?: string) => {
     if (!this.prepareState) {
       throw new Error('Not in prepare state');
     }
@@ -252,9 +252,9 @@ export class Session extends EventEmitter {
     await this.peer.setRemoteDescription({ type: 'answer', sdp: res.sdp });
     await this.dc.ready();
     console.log('Connected');
-  }
+  };
 
-  async restartIce() {
+  private restartIce = async () => {
     //TODO detect disconnect state and call restart-ice
     const local_desc = await this.peer.createOffer({
       offerToReceiveAudio: true,
@@ -295,14 +295,14 @@ export class Session extends EventEmitter {
       );
       this.conn_id = res.connId;
       this.receivers.map((r) => {
-        r.media_stream.removeTrack(r.media_stream.getTracks()[0]!);
+        r.mediaStream.removeTrack(r.mediaStream.getTracks()[0]!);
       }, []);
     }
     await this.peer.setLocalDescription(local_desc);
     await this.peer.setRemoteDescription({ type: 'answer', sdp: res.sdp });
-  }
+  };
 
-  async join(info: JoinInfo, token: string) {
+  public join = async (info: JoinInfo, token: string) => {
     // We need to create new mixer or reconfig it according to new info.
     // In case of newer room dont have mixer, we just reject it and remain old mixer,
     // the server don't send any update in this case.
@@ -329,9 +329,9 @@ export class Session extends EventEmitter {
     this.cfg.join = info;
     this.cfg.token = token;
     this.emit(SessionEvent.ROOM_CHANGED, info);
-  }
+  };
 
-  async syncSdp() {
+  private syncSdp = async () => {
     const local_desc = await this.peer.createOffer({
       offerToReceiveAudio: true,
       offerToReceiveVideo: true,
@@ -351,9 +351,9 @@ export class Session extends EventEmitter {
     console.log('Request update sdp success', res);
     await this.peer.setLocalDescription(local_desc);
     await this.peer.setRemoteDescription({ type: 'answer', sdp: res.sdp!.sdp });
-  }
+  };
 
-  async leave() {
+  public leave = async () => {
     //reset local here
     this.receivers.map((r) => r.leaveRoom());
     this.mixer?.leave_room();
@@ -363,7 +363,7 @@ export class Session extends EventEmitter {
     });
     this.cfg.join = undefined;
     this.emit(SessionEvent.ROOM_CHANGED, undefined);
-  }
+  };
 
   public disconnect = async () => {
     console.warn('Disconnect session', this.created_at);

@@ -30,12 +30,12 @@ export interface TrackSenderConfig {
 }
 
 export class TrackSender extends EventEmitter {
-  sender_state: Sender_State;
-  transceiver?: RTCRtpTransceiver;
-  kind: Kind;
-  track?: MediaStreamTrack;
-  simulcast: boolean;
-  _status?: TrackSenderStatus;
+  private readonly sender_state: Sender_State;
+  private transceiver?: RTCRtpTransceiver;
+  private readonly _kind: Kind;
+  private track?: MediaStreamTrack;
+  private readonly simulcast: boolean;
+  private _status?: TrackSenderStatus;
 
   constructor(
     private dc: Datachannel,
@@ -47,9 +47,9 @@ export class TrackSender extends EventEmitter {
     console.log('[TrackSender] created', track_name, dc, track_or_kind);
     if (track_or_kind instanceof MediaStreamTrack) {
       this.track = track_or_kind;
-      this.kind = stringToKind(track_or_kind.kind as any);
+      this._kind = stringToKind(track_or_kind.kind as any);
     } else {
-      this.kind = track_or_kind;
+      this._kind = track_or_kind;
     }
     this.simulcast = !!cfg.simulcast;
     this.sender_state = {
@@ -80,6 +80,10 @@ export class TrackSender extends EventEmitter {
     return this.track_name;
   }
 
+  public get kind(): Kind {
+    return this._kind;
+  }
+
   public get status(): TrackSenderStatus | undefined {
     return this._status;
   }
@@ -91,16 +95,16 @@ export class TrackSender extends EventEmitter {
   public get state(): Sender {
     return {
       name: this.track_name,
-      kind: this.kind,
+      kind: this._kind,
       state: this.sender_state,
     };
   }
 
   /// We need lazy prepare for avoding error when sender track is changed before it connect.
   /// Config after init feature will be useful when complex application
-  prepare(peer: RTCPeerConnection) {
+  public prepare = (peer: RTCPeerConnection) => {
     this.transceiver = peer.addTransceiver(
-      this.track || kindToString(this.kind),
+      this.track || kindToString(this._kind),
       {
         direction: 'sendonly',
         sendEncodings: this.simulcast
@@ -112,14 +116,14 @@ export class TrackSender extends EventEmitter {
           : undefined,
       },
     );
-  }
+  };
 
-  public async attach(track: MediaStreamTrack, metadata?: string) {
+  public attach = async (track: MediaStreamTrack, metadata?: string) => {
     if (this.track) {
       throw new Error('This sender already attached');
     }
-    if (track.kind != kindToString(this.kind)) {
-      throw new Error('Wrong track kind');
+    if (track.kind != kindToString(this._kind)) {
+      throw new Error('Wrong track _kind');
     }
     this.track = track;
     this.sender_state.source = {
@@ -145,9 +149,9 @@ export class TrackSender extends EventEmitter {
         source: this.sender_state.source!,
       },
     });
-  }
+  };
 
-  public async config(config: Sender_Config) {
+  public config = async (config: Sender_Config) => {
     //if we in prepare state, we dont need to access to server, just update local
     if (!this.transceiver) {
       console.log('[TrackSender] config on prepare state');
@@ -165,9 +169,9 @@ export class TrackSender extends EventEmitter {
       name: this.track_name,
       config,
     });
-  }
+  };
 
-  public async detach() {
+  public detach = async () => {
     if (!this.track) {
       throw new Error("This sender wasn't attach to any track");
     }
@@ -188,5 +192,5 @@ export class TrackSender extends EventEmitter {
       name: this.track_name,
       detach: {},
     });
-  }
+  };
 }

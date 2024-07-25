@@ -27,11 +27,11 @@ export enum DatachannelEvent {
 }
 
 export class Datachannel extends EventEmitter {
-  waiter: ReadyWaiter = new ReadyWaiter();
-  seq_id: number = 0;
-  req_id: number = 0;
-  reqs: Map<number, (_: ProtoResponse) => void> = new Map();
-  prepare_state = true;
+  private waiter: ReadyWaiter = new ReadyWaiter();
+  private seq_id: number = 0;
+  private req_id: number = 0;
+  private reqs: Map<number, (_: ProtoResponse) => void> = new Map();
+  private prepare_state = true;
 
   constructor(private dc: RTCDataChannel) {
     super();
@@ -82,11 +82,13 @@ export class Datachannel extends EventEmitter {
     return this.dc.readyState == 'open';
   }
 
-  public async ready(): Promise<void> {
+  public ready = async (): Promise<void> => {
     return this.waiter.waitReady();
-  }
+  };
 
-  public async requestSession(req: Request_Session): Promise<Response_Session> {
+  public requestSession = async (
+    req: Request_Session,
+  ): Promise<Response_Session> => {
     const reqId = this.gen_req_id();
     const res = await this.request({ reqId, session: req });
     if (res.session) {
@@ -94,9 +96,11 @@ export class Datachannel extends EventEmitter {
     } else {
       throw Error('INVALID_SERVER_RESPONSE');
     }
-  }
+  };
 
-  public async requestSender(req: Request_Sender): Promise<Response_Sender> {
+  public requestSender = async (
+    req: Request_Sender,
+  ): Promise<Response_Sender> => {
     const reqId = this.gen_req_id();
     const res = await this.request({ reqId, sender: req });
     if (res.sender) {
@@ -104,11 +108,11 @@ export class Datachannel extends EventEmitter {
     } else {
       throw Error('INVALID_SERVER_RESPONSE');
     }
-  }
+  };
 
-  public async requestReceiver(
+  public requestReceiver = async (
     req: Request_Receiver,
-  ): Promise<Response_Receiver> {
+  ): Promise<Response_Receiver> => {
     const reqId = this.gen_req_id();
     const res = await this.request({ reqId, receiver: req });
     if (res.receiver) {
@@ -116,9 +120,9 @@ export class Datachannel extends EventEmitter {
     } else {
       throw Error('INVALID_SERVER_RESPONSE');
     }
-  }
+  };
 
-  public async requestMixer(req: RequestMixer): Promise<ResponseMixer> {
+  public requestMixer = async (req: RequestMixer): Promise<ResponseMixer> => {
     const reqId = this.gen_req_id();
     const res = await this.request({ reqId, features: { mixer: req } });
     if (res.features?.mixer) {
@@ -126,9 +130,9 @@ export class Datachannel extends EventEmitter {
     } else {
       throw Error('INVALID_SERVER_RESPONSE');
     }
-  }
+  };
 
-  async request(request: ProtoRequest): Promise<ProtoResponse> {
+  public request = async (request: ProtoRequest): Promise<ProtoResponse> => {
     const seq = this.gen_seq_id();
     const buf = ClientEvent.encode({
       seq,
@@ -152,15 +156,15 @@ export class Datachannel extends EventEmitter {
     } else {
       return res;
     }
-  }
+  };
 
-  gen_req_id(): number {
+  public gen_req_id = (): number => {
     this.req_id += 1;
     return this.req_id;
-  }
+  };
 
-  gen_seq_id(): number {
+  public gen_seq_id = (): number => {
     this.seq_id += 1;
     return this.seq_id;
-  }
+  };
 }
