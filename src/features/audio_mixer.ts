@@ -1,15 +1,16 @@
+import EventEmitter from 'eventemitter3';
+
 import { Datachannel, DatachannelEvent } from '../data';
 import {
   Config,
-  ServerEvent,
   Mode as AudioMixerMode,
+  ServerEvent,
 } from '../generated/protobuf/features.mixer';
 import { ServerEvent_Receiver_VoiceActivity } from '../generated/protobuf/session';
 import { Receiver_Source as AudioMixerSource } from '../generated/protobuf/shared';
 import { TrackReceiver, TrackReceiverEvent } from '../receiver';
 import { Session } from '../session';
 import { Kind } from '../types';
-import { EventEmitter } from '../utils';
 
 export enum AudioMixerEvent {
   OUTPUT_CHANGED = 'features.mixer.output_changed',

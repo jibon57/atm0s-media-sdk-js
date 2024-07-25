@@ -26,48 +26,6 @@ export async function postProtobuf<Request, Response>(
   return res_parse.decode(new Uint8Array(buf));
 }
 
-export interface IEventEmitter {
-  emit(event: string, ...args: any): void;
-  on(event: string, cb: any): void;
-  off(event: string, cb: any): void;
-  offAllListeners(): void;
-
-  removeAllListeners(): void;
-  removeListener(event: string, cb: any): void;
-}
-
-export class EventEmitter implements IEventEmitter {
-  events: any = {};
-
-  emit(event: string, ...args: any) {
-    for (const i of this.events[event] || []) {
-      i(...args);
-    }
-  }
-
-  on(event: string, cb: any) {
-    (this.events[event] = this.events[event] || []).push(cb);
-    return () =>
-      (this.events[event] = this.events[event].filter((i: any) => i !== cb));
-  }
-
-  off(event: string, cb: any) {
-    this.events[event] = this.events[event].filter((i: any) => i !== cb);
-  }
-
-  offAllListeners() {
-    this.events = {};
-  }
-
-  removeAllListeners() {
-    this.offAllListeners();
-  }
-
-  removeListener(event: string, cb: any) {
-    this.off(event, cb);
-  }
-}
-
 export class ReadyWaiter {
   ready = false;
   waits: [() => any, (err: any) => any][] = [];

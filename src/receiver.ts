@@ -1,3 +1,5 @@
+import EventEmitter from 'eventemitter3';
+
 import {
   Kind,
   Receiver,
@@ -5,7 +7,7 @@ import {
   Receiver_Source,
   Receiver_State,
 } from './generated/protobuf/shared';
-import { EventEmitter, ReadyWaiter } from './utils';
+import { ReadyWaiter } from './utils';
 import { Datachannel, DatachannelEvent } from './data';
 import { kindToString } from './types';
 import { ServerEvent_Receiver } from './generated/protobuf/session';

@@ -3,7 +3,6 @@ export { TrackSender, TrackSenderEvent } from './sender';
 export type { TrackSenderConfig } from './sender';
 export { TrackReceiver, TrackReceiverEvent } from './receiver';
 export * from './events';
-export { EventEmitter } from './utils';
 
 import {
   JoinInfo as JoinInfoRaw,

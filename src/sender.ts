@@ -1,3 +1,5 @@
+import EventEmitter from 'eventemitter3';
+
 import {
   BitrateControlMode,
   Kind,
@@ -8,7 +10,6 @@ import {
 import { Datachannel, DatachannelEvent } from './data';
 import { kindToString, stringToKind } from './types';
 import { ServerEvent_Sender } from './generated/protobuf/session';
-import { EventEmitter } from './utils';
 import { TrackSenderStatus } from './';
 
 const DEFAULT_CFG = {

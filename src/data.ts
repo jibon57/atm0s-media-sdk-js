@@ -1,20 +1,22 @@
+import EventEmitter from 'eventemitter3';
+
 import {
   ClientEvent,
-  ServerEvent,
   Request as ProtoRequest,
-  Response as ProtoResponse,
-  Request_Session,
-  Response_Session,
-  Request_Sender,
-  Response_Sender,
   Request_Receiver,
+  Request_Sender,
+  Request_Session,
+  Response as ProtoResponse,
   Response_Receiver,
+  Response_Sender,
+  Response_Session,
+  ServerEvent,
 } from './generated/protobuf/session';
 import {
   Request as RequestMixer,
   Response as ResponseMixer,
 } from './generated/protobuf/features.mixer';
-import { EventEmitter, ReadyWaiter } from './utils';
+import { ReadyWaiter } from './utils';
 
 export enum DatachannelEvent {
   ROOM = 'event.room',

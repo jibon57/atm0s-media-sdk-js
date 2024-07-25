@@ -1,3 +1,5 @@
+import EventEmitter from 'eventemitter3';
+
 import {
   ConnectRequest,
   ConnectResponse,
@@ -6,7 +8,7 @@ import {
 } from './generated/protobuf/gateway';
 import { TrackReceiver } from './receiver';
 import { TrackSender, TrackSenderConfig } from './sender';
-import { EventEmitter, postProtobuf } from './utils';
+import { postProtobuf } from './utils';
 import { Datachannel, DatachannelEvent } from './data';
 import {
   Request_Session_UpdateSdp,
