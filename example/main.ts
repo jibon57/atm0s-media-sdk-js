@@ -195,12 +195,12 @@ window.addEventListener('load', () => {
   document.getElementById('disMedia').addEventListener('click', async (e) => {
     e.preventDefault();
     if (audioSender && videoSender) {
-      if (audioSender._status === Sender_Status.ACTIVE) {
+      if (audioSender.status === Sender_Status.ACTIVE) {
         console.log('closing...', audioSender.name);
         audioSender.track?.stop();
         await audioSender.detach();
       }
-      if (videoSender._status === Sender_Status.ACTIVE) {
+      if (videoSender.status === Sender_Status.ACTIVE) {
         console.log('closing...', videoSender.name);
         videoSender.track?.stop();
         await videoSender.detach();

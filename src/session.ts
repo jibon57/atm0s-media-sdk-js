@@ -53,7 +53,7 @@ export class Session extends EventEmitter {
   private readonly created_at: number;
   private version?: string;
   private conn_id?: string;
-  private readonly peer: RTCPeerConnection;
+  private readonly _peer: RTCPeerConnection;
   private readonly dc: Datachannel;
   private receivers: TrackReceiver[] = [];
   private senders: TrackSender[] = [];
@@ -70,9 +70,9 @@ export class Session extends EventEmitter {
     super();
     this.created_at = new Date().getTime();
     console.warn('Create session', this.created_at);
-    this.peer = new RTCPeerConnection();
+    this._peer = new RTCPeerConnection();
     this.dc = new Datachannel(
-      this.peer.createDataChannel('data', { negotiated: true, id: 1000 }),
+      this._peer.createDataChannel('data', { negotiated: true, id: 1000 }),
     );
     this.dc.on(DatachannelEvent.ROOM, async (event: ServerEvent_Room) => {
       if (event.peerJoined) {
@@ -91,26 +91,26 @@ export class Session extends EventEmitter {
     });
 
     //TODO add await to throtle for avoiding too much update in short time
-    this.peer.onnegotiationneeded = () => {
+    this._peer.onnegotiationneeded = () => {
       if (this.dc.connected)
         this.syncSdp().then(console.log).catch(console.error);
     };
 
-    this.peer.onconnectionstatechange = () => {
+    this._peer.onconnectionstatechange = () => {
       console.log(
         '[Session] RTCPeer connection state changed',
-        this.peer.connectionState,
+        this._peer.connectionState,
       );
     };
 
-    this.peer.oniceconnectionstatechange = () => {
+    this._peer.oniceconnectionstatechange = () => {
       console.log(
         '[Session] RTCPeer ice state changed',
-        this.peer.iceConnectionState,
+        this._peer.iceConnectionState,
       );
     };
 
-    this.peer.ontrack = (event) => {
+    this._peer.ontrack = (event) => {
       for (let i = 0; i < this.receivers.length; i++) {
         const receiver = this.receivers[i]!;
         if (receiver.webrtcTrackId == event.track.id) {
@@ -126,7 +126,7 @@ export class Session extends EventEmitter {
       console.warn('[Session] not found receiver for track', event.track);
     };
 
-    this.peer.onicecandidate = async (event) => {
+    this._peer.onicecandidate = async (event) => {
       if (event.candidate && !this.ice_lite) {
         const req = RemoteIceRequest.create({
           candidates: [event.candidate.candidate],
@@ -163,12 +163,16 @@ export class Session extends EventEmitter {
     return this._mixer;
   }
 
+  public get peer() {
+    return this._peer;
+  }
+
   public receiver = (kind: Kind): TrackReceiver => {
     const kind_str = kindToString(kind);
     const track_name = kind_str + '_' + this.receivers.length;
     const receiver = new TrackReceiver(this.dc, track_name, kind);
     if (!this.prepareState) {
-      receiver.prepare(this.peer);
+      receiver.prepare(this._peer);
     }
     this.receivers.push(receiver);
     console.log('Created receiver', kind, track_name);
@@ -190,7 +194,7 @@ export class Session extends EventEmitter {
 
     const sender = new TrackSender(this.dc, track_name, track_or_kind, cfg);
     if (!this.prepareState) {
-      sender.prepare(this.peer);
+      sender.prepare(this._peer);
     }
     this.senders.push(sender);
     console.log('Created sender', sender.kind, track_name);
@@ -207,15 +211,15 @@ export class Session extends EventEmitter {
     //prepare for senders. We need to lazy prepare because some transceiver dont allow update before connected
     for (let i = 0; i < this.senders.length; i++) {
       console.log('Prepare sender ', this.senders[i]!.name);
-      this.senders[i]!.prepare(this.peer);
+      this.senders[i]!.prepare(this._peer);
     }
     //prepare for receivers. We need to lazy prepare because some transceiver dont allow update before connected
     for (let i = 0; i < this.receivers.length; i++) {
       console.log('Prepare receiver ', this.receivers[i]!.name);
-      this.receivers[i]!.prepare(this.peer);
+      this.receivers[i]!.prepare(this._peer);
     }
     console.log('Prepare offer for connect');
-    const local_desc = await this.peer.createOffer({
+    const local_desc = await this._peer.createOffer({
       offerToReceiveAudio: true,
       offerToReceiveVideo: true,
     });
@@ -248,15 +252,15 @@ export class Session extends EventEmitter {
     );
     this.conn_id = res.connId;
     this.ice_lite = res.iceLite;
-    await this.peer.setLocalDescription(local_desc);
-    await this.peer.setRemoteDescription({ type: 'answer', sdp: res.sdp });
+    await this._peer.setLocalDescription(local_desc);
+    await this._peer.setRemoteDescription({ type: 'answer', sdp: res.sdp });
     await this.dc.ready();
     console.log('Connected');
   };
 
   private restartIce = async () => {
     //TODO detect disconnect state and call restart-ice
-    const local_desc = await this.peer.createOffer({
+    const local_desc = await this._peer.createOffer({
       offerToReceiveAudio: true,
       offerToReceiveVideo: true,
     });
@@ -298,8 +302,8 @@ export class Session extends EventEmitter {
         r.mediaStream.removeTrack(r.mediaStream.getTracks()[0]!);
       }, []);
     }
-    await this.peer.setLocalDescription(local_desc);
-    await this.peer.setRemoteDescription({ type: 'answer', sdp: res.sdp });
+    await this._peer.setLocalDescription(local_desc);
+    await this._peer.setRemoteDescription({ type: 'answer', sdp: res.sdp });
   };
 
   public join = async (info: JoinInfo, token: string) => {
@@ -332,7 +336,7 @@ export class Session extends EventEmitter {
   };
 
   private syncSdp = async () => {
-    const local_desc = await this.peer.createOffer({
+    const local_desc = await this._peer.createOffer({
       offerToReceiveAudio: true,
       offerToReceiveVideo: true,
     });
@@ -349,8 +353,11 @@ export class Session extends EventEmitter {
       sdp: update_sdp,
     });
     console.log('Request update sdp success', res);
-    await this.peer.setLocalDescription(local_desc);
-    await this.peer.setRemoteDescription({ type: 'answer', sdp: res.sdp!.sdp });
+    await this._peer.setLocalDescription(local_desc);
+    await this._peer.setRemoteDescription({
+      type: 'answer',
+      sdp: res.sdp!.sdp,
+    });
   };
 
   public leave = async () => {
@@ -389,7 +396,7 @@ export class Session extends EventEmitter {
     this.senders = [];
 
     // close peer
-    this.peer.close();
+    this._peer.close();
     // finally emit event
     this.emit(SessionEvent.ROOM_DISCONNECTED);
   };

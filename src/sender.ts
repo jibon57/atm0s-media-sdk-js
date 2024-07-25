@@ -33,7 +33,7 @@ export class TrackSender extends EventEmitter {
   private readonly sender_state: Sender_State;
   private transceiver?: RTCRtpTransceiver;
   private readonly _kind: Kind;
-  private track?: MediaStreamTrack;
+  private _track?: MediaStreamTrack;
   private readonly simulcast: boolean;
   private _status?: TrackSenderStatus;
 
@@ -46,7 +46,7 @@ export class TrackSender extends EventEmitter {
     super();
     console.log('[TrackSender] created', track_name, dc, track_or_kind);
     if (track_or_kind instanceof MediaStreamTrack) {
-      this.track = track_or_kind;
+      this._track = track_or_kind;
       this._kind = stringToKind(track_or_kind.kind as any);
     } else {
       this._kind = track_or_kind;
@@ -57,9 +57,9 @@ export class TrackSender extends EventEmitter {
         priority: cfg.priority,
         bitrate: cfg.bitrate,
       },
-      source: this.track
+      source: this._track
         ? {
-            id: this.track.id,
+            id: this._track.id,
             screen: false, //TODO check if it is screen
             metadata: cfg.metadata,
           }
@@ -84,12 +84,16 @@ export class TrackSender extends EventEmitter {
     return this._kind;
   }
 
+  public get track() {
+    return this._track;
+  }
+
   public get status(): TrackSenderStatus | undefined {
     return this._status;
   }
 
   public get attached() {
-    return !!this.track;
+    return !!this._track;
   }
 
   public get state(): Sender {
@@ -104,7 +108,7 @@ export class TrackSender extends EventEmitter {
   /// Config after init feature will be useful when complex application
   public prepare = (peer: RTCPeerConnection) => {
     this.transceiver = peer.addTransceiver(
-      this.track || kindToString(this._kind),
+      this._track || kindToString(this._kind),
       {
         direction: 'sendonly',
         sendEncodings: this.simulcast
@@ -119,13 +123,13 @@ export class TrackSender extends EventEmitter {
   };
 
   public attach = async (track: MediaStreamTrack, metadata?: string) => {
-    if (this.track) {
+    if (this._track) {
       throw new Error('This sender already attached');
     }
     if (track.kind != kindToString(this._kind)) {
       throw new Error('Wrong track _kind');
     }
-    this.track = track;
+    this._track = track;
     this.sender_state.source = {
       id: track.id,
       screen: false, //TODO check if it is screen
@@ -158,7 +162,7 @@ export class TrackSender extends EventEmitter {
       return;
     }
 
-    if (!this.track) {
+    if (!this._track) {
       throw new Error("This sender wasn't attach to any track");
     }
 
@@ -172,10 +176,10 @@ export class TrackSender extends EventEmitter {
   };
 
   public detach = async () => {
-    if (!this.track) {
+    if (!this._track) {
       throw new Error("This sender wasn't attach to any track");
     }
-    this.track = undefined;
+    this._track = undefined;
     this.sender_state.source = undefined;
     this._status = undefined;
     this.emit(TrackSenderEvent.StatusUpdated, this._status);
