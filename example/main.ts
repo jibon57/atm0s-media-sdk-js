@@ -3,6 +3,7 @@ import {
   Kind,
   Session,
   SessionEvent,
+  TrackReceiver,
   TrackSender,
 } from '../src';
 import { getToken } from './token.ts';
@@ -10,7 +11,6 @@ import {
   ServerEvent_Room_PeerJoined,
   ServerEvent_Room_PeerLeaved,
   ServerEvent_Room_PeerUpdated,
-  ServerEvent_Room_TrackStarted,
   ServerEvent_Room_TrackStopped,
   ServerEvent_Room_TrackUpdated,
 } from '../src/generated/protobuf/session.ts';
@@ -92,39 +92,33 @@ const onPeerLeaved = (event: ServerEvent_Room_PeerLeaved) => {
 const onPeerUpdated = (event: ServerEvent_Room_PeerUpdated) => {
   console.log('onPeerUpdated', event);
 };
-const onTrackStarted = async (event: ServerEvent_Room_TrackStarted) => {
-  console.log('onTrackStarted', event);
-  if (session === undefined) {
-    return;
-  }
-  if (event.kind === Kind.AUDIO) {
-    if (event.peer === currentPeerId) {
+const onTrackStarted = async (receiver: TrackReceiver) => {
+  if (receiver.kind === Kind.AUDIO) {
+    if (receiver.attachedSource.peer === currentPeerId) {
       // to avoid echo
       return;
     }
-    const audioRec = session.receiver(Kind.AUDIO);
-    await audioRec.attach(event);
+    await receiver.attach();
 
     const audio = document.createElement('audio');
-    audio.srcObject = audioRec.stream;
+    audio.srcObject = receiver.mediaStream;
     audio.autoplay = true;
 
     audioTrackMap.set(
-      audioRec.attachedSource?.peer + '_' + audioRec.attachedSource?.track,
+      receiver.attachedSource?.peer + '_' + receiver.attachedSource?.track,
       audio,
     );
     playAudios();
-  } else if (event.kind === Kind.VIDEO) {
-    const videoRec = session.receiver(Kind.VIDEO);
-    await videoRec.attach(event);
+  } else if (receiver.kind === Kind.VIDEO) {
+    await receiver.attach();
 
     const video = document.createElement('video');
 
-    video.srcObject = videoRec.stream;
+    video.srcObject = receiver.mediaStream;
     video.autoplay = true;
     video.className = 'col';
     videoTracksMap.set(
-      videoRec.attachedSource?.peer + '_' + videoRec.attachedSource?.track,
+      receiver.attachedSource?.peer + '_' + receiver.attachedSource?.track,
       video,
     );
 
@@ -149,7 +143,7 @@ const onTrackStopped = (event: ServerEvent_Room_TrackStopped) => {
 };
 
 const displayVideos = () => {
-  const elm = document.getElementById('remoteVideos');
+  const elm = document.getElementById('remoteVideos') as HTMLDivElement;
   elm.innerHTML = '';
 
   videoTracksMap.forEach((v) => {
@@ -162,7 +156,7 @@ const displayVideos = () => {
 };
 
 const playAudios = () => {
-  const elm = document.getElementById('remoteAudios');
+  const elm = document.getElementById('remoteAudios') as HTMLDivElement;
   elm.innerHTML = '';
 
   audioTrackMap.forEach((a) => {
