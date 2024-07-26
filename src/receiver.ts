@@ -34,18 +34,27 @@ export class TrackReceiver extends EventEmitter {
     source: undefined,
   };
   private _status?: TrackReceiverStatus;
-  private _attachedSource?: Receiver_Source;
+  private _attachedSource: Receiver_Source;
+  private _trackName: string;
 
   constructor(
     private dc: Datachannel,
-    private track_name: string,
+    private _peer: string,
+    private _track: string,
     private _kind: Kind,
   ) {
     super();
+
+    this._trackName = _peer + '_' + _track + '_' + kindToString(_kind);
     this._mediaStream = new MediaStream();
-    console.log('[TrackReceiver] create ', track_name, dc);
+    this._attachedSource = {
+      peer: this._peer,
+      track: this._track,
+    };
+
+    console.log('[TrackReceiver] create ', this._trackName, dc);
     this.dc.on(
-      DatachannelEvent.RECEIVER + track_name,
+      DatachannelEvent.RECEIVER + this._trackName,
       (event: ServerEvent_Receiver) => {
         if (event.state) {
           this._status = event.state.status;
@@ -66,7 +75,7 @@ export class TrackReceiver extends EventEmitter {
   }
 
   public get mediaStream() {
-    return this.mediaStream;
+    return this._mediaStream;
   }
 
   public get status(): TrackReceiverStatus | undefined {
@@ -95,13 +104,9 @@ export class TrackReceiver extends EventEmitter {
     this.media_track = this.transceiver.receiver.track;
   };
 
-  public attach = async (
-    source: Receiver_Source,
-    config: Receiver_Config = DEFAULT_CFG,
-  ) => {
+  public attach = async (config: Receiver_Config = DEFAULT_CFG) => {
     this.receiver_state.config = config;
-    this.receiver_state.source = source;
-    this._attachedSource = source;
+    this.receiver_state.source = this._attachedSource;
     this._status = TrackReceiverStatus.WAITING;
     this.emit(TrackReceiverEvent.StatusUpdated, this._status);
 
@@ -114,7 +119,7 @@ export class TrackReceiver extends EventEmitter {
     await this.dc.ready();
     await this.ready();
     await this.dc.requestReceiver({
-      name: this.track_name,
+      name: this._trackName,
       attach: {
         source: this.receiver_state.source,
         config: this.receiver_state.config,
@@ -137,7 +142,7 @@ export class TrackReceiver extends EventEmitter {
     await this.dc.ready();
     await this.ready();
     await this.dc.requestReceiver({
-      name: this.track_name,
+      name: this._trackName,
       detach: {},
     });
   };
@@ -154,7 +159,7 @@ export class TrackReceiver extends EventEmitter {
     await this.dc.ready();
     await this.ready();
     await this.dc.requestReceiver({
-      name: this.track_name,
+      name: this._trackName,
       config,
     });
   };
@@ -164,12 +169,8 @@ export class TrackReceiver extends EventEmitter {
     this.receiver_state.source = undefined;
   };
 
-  public get stream() {
-    return this._mediaStream;
-  }
-
   public get name(): string {
-    return this.track_name;
+    return this._trackName;
   }
 
   public get state(): Receiver {

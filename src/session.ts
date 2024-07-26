@@ -14,11 +14,11 @@ import {
   Request_Session_UpdateSdp,
   ServerEvent_Room,
   ServerEvent_Room_PeerLeaved,
+  ServerEvent_Room_TrackStarted,
   ServerEvent_Room_TrackStopped,
 } from './generated/protobuf/session';
 import * as mixer from './features/audio_mixer';
 import { Kind, Receiver_Status } from './generated/protobuf/shared';
-import { kindToString } from './types';
 import { TrackSenderStatus } from './index';
 
 export interface JoinInfo {
@@ -82,7 +82,7 @@ export class Session extends EventEmitter {
       } else if (event.peerLeaved) {
         await this.onAfterPeerLeave(event.peerLeaved);
       } else if (event.trackStarted) {
-        this.emit(SessionEvent.ROOM_TRACK_STARTED, event.trackStarted);
+        this.onAfterTrackStarted(event.trackStarted);
       } else if (event.trackUpdated) {
         this.emit(SessionEvent.ROOM_TRACK_UPDATED, event.trackUpdated);
       } else if (event.trackStopped) {
@@ -167,17 +167,17 @@ export class Session extends EventEmitter {
     return this._peer;
   }
 
-  public receiver = (kind: Kind): TrackReceiver => {
-    const kind_str = kindToString(kind);
-    const track_name = kind_str + '_' + this.receivers.length;
-    const receiver = new TrackReceiver(this.dc, track_name, kind);
-    if (!this.prepareState) {
-      receiver.prepare(this._peer);
-    }
-    this.receivers.push(receiver);
-    console.log('Created receiver', kind, track_name);
-    return receiver;
-  };
+  // public receiver = (kind: Kind): TrackReceiver => {
+  //   const kind_str = kindToString(kind);
+  //   const track_name = kind_str + '_' + this.receivers.length;
+  //   const receiver = new TrackReceiver(this.dc, track_name, kind);
+  //   if (!this.prepareState) {
+  //     receiver.prepare(this._peer);
+  //   }
+  //   this.receivers.push(receiver);
+  //   console.log('Created receiver', kind, track_name);
+  //   return receiver;
+  // };
 
   public sender = (
     track_name: string,
@@ -433,5 +433,22 @@ export class Session extends EventEmitter {
       }
     }
     this.emit(SessionEvent.ROOM_TRACK_STOPPED, event);
+  };
+
+  private onAfterTrackStarted = async (
+    event: ServerEvent_Room_TrackStarted,
+  ) => {
+    const receiver = new TrackReceiver(
+      this.dc,
+      event.peer,
+      event.track,
+      event.kind,
+    );
+    if (!this.prepareState) {
+      receiver.prepare(this._peer);
+    }
+    this.receivers.push(receiver);
+
+    this.emit(SessionEvent.ROOM_TRACK_STARTED, receiver);
   };
 }
