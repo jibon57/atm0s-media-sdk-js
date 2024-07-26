@@ -23,6 +23,8 @@ let videoSender: TrackSender | undefined = undefined;
 let currentPeerId: string = '';
 const videoTracksMap = new Map<string, HTMLVideoElement>();
 const audioTrackMap = new Map<string, HTMLAudioElement>();
+const localTrackMap = new Map<string, TrackSender>();
+
 const createSession = async (
   gatewayUrl: string,
   secret: string,
@@ -113,15 +115,14 @@ const onTrackStarted = async (receiver: TrackReceiver) => {
     await receiver.attach();
 
     const video = document.createElement('video');
-
     video.srcObject = receiver.mediaStream;
     video.autoplay = true;
-    video.className = 'col';
+    video.controls = true;
+
     videoTracksMap.set(
       receiver.attachedSource?.peer + '_' + receiver.attachedSource?.track,
       video,
     );
-
     displayVideos();
   }
 };
@@ -145,7 +146,7 @@ const onTrackStopped = (event: ServerEvent_Room_TrackStopped) => {
 const displayVideos = () => {
   const elm = document.getElementById('remoteVideos') as HTMLDivElement;
   elm.innerHTML = '';
-
+  console.log(videoTracksMap);
   videoTracksMap.forEach((v) => {
     const div = document.createElement('div');
     div.className = 'col';
@@ -168,21 +169,35 @@ const mediaShare = async () => {
   if (session === undefined) {
     return;
   }
+  let trackName = 'audio_main';
   const audioStream = await navigator.mediaDevices.getUserMedia({
     audio: true,
   });
-  audioSender = session.sender('audio_main', audioStream.getAudioTracks()[0]);
+  if (localTrackMap.has(trackName)) {
+    audioSender = localTrackMap.get(trackName);
+    await audioSender?.attach(audioStream.getAudioTracks()[0]);
+  } else {
+    audioSender = session.sender(trackName, audioStream.getAudioTracks()[0]);
+    localTrackMap.set(trackName, audioSender);
+  }
 
+  trackName = 'video_main';
   const videoStream = await navigator.mediaDevices.getUserMedia({
     audio: false,
     video: true,
   });
-
-  videoSender = session.sender('video_main', videoStream.getVideoTracks()[0], {
-    priority: 100,
-    bitrate: BitrateControlMode.DYNAMIC_CONSUMERS,
-    metadata: 'Video stream metadata',
-  });
+  console.log('localTrackMap.has(trackName) ==>', localTrackMap.has(trackName));
+  if (localTrackMap.has(trackName)) {
+    videoSender = localTrackMap.get(trackName);
+    await videoSender?.attach(videoStream.getVideoTracks()[0]);
+  } else {
+    videoSender = session.sender(trackName, videoStream.getVideoTracks()[0], {
+      priority: 100,
+      bitrate: BitrateControlMode.DYNAMIC_CONSUMERS,
+      metadata: 'Video stream metadata',
+    });
+    localTrackMap.set(trackName, videoSender);
+  }
 
   const localVideo = document.getElementById('local') as HTMLVideoElement;
   localVideo.srcObject = videoStream;
